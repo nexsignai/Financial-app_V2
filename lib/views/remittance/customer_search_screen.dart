@@ -1,7 +1,10 @@
 // lib/views/remittance/customer_search_screen.dart
+// Customer list for remittance: loaded from CustomerStore (Supabase when configured). Searchable by name or bank.
 
 import 'package:flutter/material.dart';
+import '../../config/supabase_config.dart';
 import '../../providers/mock_data.dart';
+import '../../providers/customer_store.dart';
 import 'remittance_transaction_screen.dart';
 import 'remittance_history_screen.dart';
 import 'remittance_rate_screen.dart';
@@ -16,7 +19,6 @@ class CustomerSearchScreen extends StatefulWidget {
 
 class _CustomerSearchScreenState extends State<CustomerSearchScreen> {
   final _searchController = TextEditingController();
-  List<MockCustomer> _customers = [];
   List<MockCustomer> _filteredCustomers = [];
   bool _isLoading = true;
 
@@ -33,31 +35,26 @@ class _CustomerSearchScreenState extends State<CustomerSearchScreen> {
   }
 
   Future<void> _loadCustomers() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
+    await CustomerStore.instance.loadCustomers();
+    if (!mounted) return;
+    _applyFilter(_searchController.text);
+    setState(() => _isLoading = false);
+  }
 
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    setState(() {
-      _customers = MockDataProvider.getCustomers();
-      _filteredCustomers = _customers;
-      _isLoading = false;
-    });
+  void _applyFilter(String query) {
+    final customers = CustomerStore.instance.customers;
+    if (query.trim().isEmpty) {
+      _filteredCustomers = customers;
+    } else {
+      _filteredCustomers = customers
+          .where((customer) => customer.matchesSearch(query.trim()))
+          .toList();
+    }
   }
 
   void _filterCustomers(String query) {
-    if (query.isEmpty) {
-      setState(() {
-        _filteredCustomers = _customers;
-      });
-    } else {
-      setState(() {
-        _filteredCustomers = _customers
-            .where((customer) => customer.matchesSearch(query))
-            .toList();
-      });
-    }
+    setState(() => _applyFilter(query));
   }
 
   @override
@@ -100,7 +97,7 @@ class _CustomerSearchScreenState extends State<CustomerSearchScreen> {
               controller: _searchController,
               decoration: const InputDecoration(
                 labelText: 'Search',
-                hintText: 'Name, phone, or account number',
+                hintText: 'Search by name or bank',
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: _filterCustomers,
@@ -149,13 +146,20 @@ class _CustomerSearchScreenState extends State<CustomerSearchScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          final added = await Navigator.push<bool>(
             context,
             MaterialPageRoute(
               builder: (_) => const AddCustomerScreen(),
             ),
-          ).then((_) => _loadCustomers());
+          );
+          if (added == true && mounted) {
+            if (isSupabaseConfigured) {
+              await _loadCustomers();
+            } else {
+              setState(() => _applyFilter(_searchController.text));
+            }
+          }
         },
         icon: const Icon(Icons.person_add),
         label: const Text('Add Customer'),

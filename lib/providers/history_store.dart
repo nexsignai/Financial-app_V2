@@ -495,6 +495,7 @@ class HistoryStore extends ChangeNotifier {
     return '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
   }
 
+  /// Exchange sell today: MYR received (increases Total In / cash flow).
   Decimal get totalInFromExchange {
     Decimal sum = Decimal.zero;
     final today = todayStr();
@@ -504,6 +505,7 @@ class HistoryStore extends ChangeNotifier {
     return sum;
   }
 
+  /// Exchange buy today: MYR paid out (increases Total Out / reduces cash flow).
   Decimal get totalOutFromExchange {
     Decimal sum = Decimal.zero;
     final today = todayStr();
@@ -573,9 +575,9 @@ class HistoryStore extends ChangeNotifier {
     return sum;
   }
 
-  /// Total In = exchange sell + remittance customer MYR (paid) + tour charge (clear).
+  /// Total In = exchange sell + remittance customer MYR (paid) + tour charge (clear) + daily sold profit.
   Decimal get totalIn =>
-      totalInFromExchange + totalInFromRemittance + totalInFromTour;
+      totalInFromExchange + totalInFromRemittance + totalInFromTour + dailySoldProfitToday;
   /// Total Out = exchange buy + remittance cost (RM deduction for paid).
   Decimal get totalOut => totalOutFromExchange + totalOutFromRemittance;
   Decimal get remittanceProfitToday {
@@ -600,14 +602,30 @@ class HistoryStore extends ChangeNotifier {
     return sum;
   }
 
-  /// Money Changer profit for a given day (Daily Sold only). Delayed: added when user confirms Daily Sold.
-  Decimal getMoneyChangerProfitForDay(String dateStr) {
+  /// Exchange net for a given day (sell MYR in − buy MYR out). Updates when user does buy/sell in Exchange.
+  Decimal getExchangeNetForDay(String dateStr) {
+    Decimal exIn = Decimal.zero;
+    Decimal exOut = Decimal.zero;
+    for (final e in exchangeHistory) {
+      if (e.dateStr != dateStr) continue;
+      if (e.mode == 'sell') exIn += e.myrAmount;
+      if (e.mode == 'buy') exOut += e.myrAmount;
+    }
+    return exIn - exOut;
+  }
+
+  /// Daily sold profit only for a given day (Money Changer batch). Added when user confirms Daily Sold.
+  Decimal getDailySoldProfitForDay(String dateStr) {
     Decimal sum = Decimal.zero;
     for (final e in dailySoldProfits) {
       if (e.dateStr == dateStr) sum += e.amount;
     }
     return sum;
   }
+
+  /// Money Changer profit for a given day = exchange net (sell − buy) + daily sold profit. Updates on every buy/sell and on Daily Sold.
+  Decimal getMoneyChangerProfitForDay(String dateStr) =>
+      getExchangeNetForDay(dateStr) + getDailySoldProfitForDay(dateStr);
 
   /// Tour profit for a given day (Paid/Clear entries only). Status-based: only when tour is marked Clear/Paid.
   Decimal getTourProfitForDay(String dateStr) {
@@ -618,7 +636,7 @@ class HistoryStore extends ChangeNotifier {
     return sum;
   }
 
-  /// Daily cash flow: exchange in - out + remittance net (myr - cost) for paid + tour charge for clear.
+  /// Daily cash flow: exchange in - out + remittance net (myr - cost) for paid + tour charge for clear + daily sold profit.
   Decimal getCashFlowForDay(String dateStr) {
     Decimal exIn = Decimal.zero;
     Decimal exOut = Decimal.zero;
@@ -635,7 +653,8 @@ class HistoryStore extends ChangeNotifier {
     for (final e in tourHistory) {
       if (e.dateStr == dateStr && e.isClear) tourIn += e.chargeAmount;
     }
-    return exIn - exOut + remNet + tourIn;
+    final dailySoldForDay = getDailySoldProfitForDay(dateStr);
+    return exIn - exOut + remNet + tourIn + dailySoldForDay;
   }
 
   /// All dates that have any data (exchange, remittance, tour, daily sold), newest first.

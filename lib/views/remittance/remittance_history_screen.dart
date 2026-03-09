@@ -2,6 +2,7 @@
 // Priority sort: Unpaid at top (red), then Paid. Tap to view/edit or toggle status.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:decimal/decimal.dart';
 import '../../providers/history_store.dart';
 import '../../utils/formatters.dart';
@@ -16,10 +17,28 @@ class RemittanceHistoryScreen extends StatefulWidget {
 }
 
 class _RemittanceHistoryScreenState extends State<RemittanceHistoryScreen> {
+  String? _lastCopiedId;
+
   @override
   void initState() {
     super.initState();
     HistoryStore.initSampleData();
+  }
+
+  void _copyCustomerToClipboard(MockRemittanceEntry e) {
+    final text = '${e.customerName}\n${e.bankName}\n${e.accountNumber}';
+    Clipboard.setData(ClipboardData(text: text));
+    setState(() {
+      _lastCopiedId = e.id;
+    });
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      if (_lastCopiedId == e.id) {
+        setState(() {
+          _lastCopiedId = null;
+        });
+      }
+    });
   }
 
   @override
@@ -114,14 +133,38 @@ class _RemittanceHistoryScreenState extends State<RemittanceHistoryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      e.customerName,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                        color: isPriority ? Colors.red[900] : null,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            e.customerName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              color: isPriority ? Colors.red[900] : null,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.copy, size: 18),
+                          tooltip: 'Quick Copy',
+                          onPressed: () => _copyCustomerToClipboard(e),
+                        ),
+                      ],
                     ),
+                    if (_lastCopiedId == e.id)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          'Copied!',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.green[700],
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 4),
                     Text(
                       AppFormatters.formatDateTimePrecise(e.dateTime),

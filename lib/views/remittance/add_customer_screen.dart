@@ -1,6 +1,8 @@
 // lib/views/remittance/add_customer_screen.dart
 
 import 'package:flutter/material.dart';
+import '../../providers/mock_data.dart';
+import '../../providers/customer_store.dart';
 
 class AddCustomerScreen extends StatefulWidget {
   const AddCustomerScreen({super.key});
@@ -17,6 +19,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   final _accountController = TextEditingController();
   final _ifscController = TextEditingController();
   String _selectedCountry = 'India';
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -29,18 +32,43 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   }
 
   Future<void> _saveCustomer() async {
-    if (_formKey.currentState!.validate()) {
-      await Future.delayed(const Duration(milliseconds: 500));
-
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      final now = DateTime.now();
+      final customer = MockCustomer(
+        id: 'cust_${now.millisecondsSinceEpoch}',
+        name: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        bankName: _bankController.text.trim(),
+        accountNumber: _accountController.text.trim(),
+        ifscCode: _ifscController.text.trim().isEmpty ? null : _ifscController.text.trim(),
+        country: _selectedCountry,
+        createdAt: now,
+        lastTransactionDate: null,
+        totalTransactions: 0,
+      );
+      await CustomerStore.instance.addCustomer(customer);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Customer "${_nameController.text}" added successfully'),
+            content: Text('Customer "${customer.name}" added successfully'),
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -90,7 +118,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               const SizedBox(height: 16),
 
               DropdownButtonFormField<String>(
-                initialValue: _selectedCountry,
+                value: _selectedCountry,
                 decoration: const InputDecoration(
                   labelText: 'Destination Country *',
                   prefixIcon: Icon(Icons.flag),
@@ -103,7 +131,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
-                    _selectedCountry = value!;
+                    _selectedCountry = value ?? 'India';
                   });
                 },
               ),
@@ -157,16 +185,22 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               const SizedBox(height: 24),
 
               ElevatedButton(
-                onPressed: _saveCustomer,
+                onPressed: _saving ? null : _saveCustomer,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.all(16),
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text(
-                  'Save Customer',
-                  style: TextStyle(fontSize: 18),
-                ),
+                child: _saving
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text(
+                        'Save Customer',
+                        style: TextStyle(fontSize: 18),
+                      ),
               ),
             ],
           ),

@@ -8,6 +8,14 @@ import '../providers/history_store.dart';
 class SupabaseHistoryService {
   static SupabaseClient get _client => Supabase.instance.client;
 
+  static String _userIdOrThrow() {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      throw Exception('Not authenticated');
+    }
+    return user.id;
+  }
+
   static const _tableRemittance = 'remittance_transactions';
   static const _tableExchange = 'exchange_transactions';
   static const _tableTour = 'tour_transactions';
@@ -27,7 +35,11 @@ class SupabaseHistoryService {
   // ---- Load all ----
 
   static Future<List<MockRemittanceEntry>> loadRemittance() async {
-    final res = await _client.from(_tableRemittance).select().order('date_time', ascending: false);
+    final res = await _client
+        .from(_tableRemittance)
+        .select()
+        .eq('user_id', _userIdOrThrow())
+        .order('date_time', ascending: false);
     final list = res as List<dynamic>? ?? [];
     return list.map((e) {
       final m = e as Map<String, dynamic>;
@@ -52,7 +64,11 @@ class SupabaseHistoryService {
   }
 
   static Future<List<MockExchangeEntry>> loadExchange() async {
-    final res = await _client.from(_tableExchange).select().order('date_time', ascending: false);
+    final res = await _client
+        .from(_tableExchange)
+        .select()
+        .eq('user_id', _userIdOrThrow())
+        .order('date_time', ascending: false);
     final list = res as List<dynamic>? ?? [];
     return list.map((e) {
       final m = e as Map<String, dynamic>;
@@ -69,7 +85,11 @@ class SupabaseHistoryService {
   }
 
   static Future<List<MockTourEntry>> loadTour() async {
-    final res = await _client.from(_tableTour).select().order('date_time', ascending: false);
+    final res = await _client
+        .from(_tableTour)
+        .select()
+        .eq('user_id', _userIdOrThrow())
+        .order('date_time', ascending: false);
     final list = res as List<dynamic>? ?? [];
     return list.map((e) {
       final m = e as Map<String, dynamic>;
@@ -86,7 +106,11 @@ class SupabaseHistoryService {
   }
 
   static Future<List<DailySoldProfitEntry>> loadDailySoldProfits() async {
-    final res = await _client.from(_tableDailySold).select().order('date_time', ascending: false);
+    final res = await _client
+        .from(_tableDailySold)
+        .select()
+        .eq('user_id', _userIdOrThrow())
+        .order('date_time', ascending: false);
     final list = res as List<dynamic>? ?? [];
     return list.map((e) {
       final m = e as Map<String, dynamic>;
@@ -99,7 +123,12 @@ class SupabaseHistoryService {
   }
 
   static Future<Decimal> loadOpeningCash() async {
-    final res = await _client.from(_tableSettings).select('value').eq('key', _keyOpeningCash).maybeSingle();
+    final res = await _client
+        .from(_tableSettings)
+        .select('value')
+        .eq('user_id', _userIdOrThrow())
+        .eq('key', _keyOpeningCash)
+        .maybeSingle();
     final v = res?['value'] as String?;
     if (v != null && v.isNotEmpty) return Decimal.parse(v);
     return Decimal.parse('10000.00');
@@ -110,6 +139,7 @@ class SupabaseHistoryService {
   static Future<void> saveRemittance(MockRemittanceEntry e) async {
     await _client.from(_tableRemittance).upsert({
       'id': e.id,
+      'user_id': _userIdOrThrow(),
       'date_time': _toIso(e.dateTime),
       'customer_name': e.customerName,
       'phone': e.phone,
@@ -130,6 +160,7 @@ class SupabaseHistoryService {
   static Future<void> saveExchange(MockExchangeEntry e) async {
     await _client.from(_tableExchange).upsert({
       'id': e.id,
+      'user_id': _userIdOrThrow(),
       'date_time': _toIso(e.dateTime),
       'currency': e.currency,
       'mode': e.mode,
@@ -142,6 +173,7 @@ class SupabaseHistoryService {
   static Future<void> saveTour(MockTourEntry e) async {
     await _client.from(_tableTour).upsert({
       'id': e.id,
+      'user_id': _userIdOrThrow(),
       'date_time': _toIso(e.dateTime),
       'description': e.description,
       'driver': e.driver,
@@ -154,6 +186,7 @@ class SupabaseHistoryService {
   static Future<void> saveDailySoldProfit(DailySoldProfitEntry e) async {
     await _client.from(_tableDailySold).insert({
       'id': e.id,
+      'user_id': _userIdOrThrow(),
       'date_time': _toIso(e.dateTime),
       'amount': e.amount.toString(),
     });
@@ -161,6 +194,7 @@ class SupabaseHistoryService {
 
   static Future<void> saveOpeningCash(Decimal value) async {
     await _client.from(_tableSettings).upsert({
+      'user_id': _userIdOrThrow(),
       'key': _keyOpeningCash,
       'value': value.toString(),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
@@ -170,14 +204,26 @@ class SupabaseHistoryService {
   // ---- Delete (removes from Supabase so history/profit/cash flow stay in sync) ----
 
   static Future<void> deleteRemittance(String id) async {
-    await _client.from(_tableRemittance).delete().eq('id', id);
+    await _client
+        .from(_tableRemittance)
+        .delete()
+        .eq('user_id', _userIdOrThrow())
+        .eq('id', id);
   }
 
   static Future<void> deleteExchange(String id) async {
-    await _client.from(_tableExchange).delete().eq('id', id);
+    await _client
+        .from(_tableExchange)
+        .delete()
+        .eq('user_id', _userIdOrThrow())
+        .eq('id', id);
   }
 
   static Future<void> deleteTour(String id) async {
-    await _client.from(_tableTour).delete().eq('id', id);
+    await _client
+        .from(_tableTour)
+        .delete()
+        .eq('user_id', _userIdOrThrow())
+        .eq('id', id);
   }
 }

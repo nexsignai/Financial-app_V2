@@ -66,7 +66,7 @@ class _ProfitBreakdownScreenState extends State<ProfitBreakdownScreen> {
                 const Padding(
                   padding: EdgeInsets.only(bottom: 12),
                   child: Text(
-                    'Daily history: Remittance (real-time), Money Changer (on Daily Sold), Tour (when Paid/Clear).',
+                    'Daily history: Remittance (real-time), Money Changer (buy/sell + Daily Sold), Tour (when Paid/Clear). Cash flow updates when you buy or sell currency.',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ),

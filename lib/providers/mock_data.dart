@@ -296,10 +296,12 @@ class MockCustomer {
     return country == 'India' ? 'INR' : 'IDR';
   }
   
+  /// Searchable by name, phone, account number, or bank name.
   bool matchesSearch(String query) {
     final lowerQuery = query.toLowerCase();
     return name.toLowerCase().contains(lowerQuery) ||
         phone.contains(query) ||
-        accountNumber.contains(query);
+        accountNumber.contains(query) ||
+        bankName.toLowerCase().contains(lowerQuery);
   }
 }

@@ -24,6 +24,7 @@ class _RemittanceTransactionScreenState extends State<RemittanceTransactionScree
   bool _isPaid = false;
   bool _isCalculating = false;
   bool _ratesLoaded = false;
+  bool _copied = false;
 
   bool get _isIdr => widget.customer.currencyCode == 'IDR';
 
@@ -109,20 +110,18 @@ class _RemittanceTransactionScreenState extends State<RemittanceTransactionScree
     return (cost, profitDecimal);
   }
 
-  void _copyToClipboard() {
-    if (_foreignController.text.isEmpty) return;
-
-    final clipboardText = '${widget.customer.name}\n${widget.customer.bankName}\n'
-        '${widget.customer.accountNumber}\n${_foreignController.text}';
-
-    Clipboard.setData(ClipboardData(text: clipboardText));
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Copied to clipboard'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  void _copyCustomerToClipboard() {
+    final text = '${widget.customer.name}\n${widget.customer.bankName}\n${widget.customer.accountNumber}';
+    Clipboard.setData(ClipboardData(text: text));
+    setState(() {
+      _copied = true;
+    });
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      setState(() {
+        _copied = false;
+      });
+    });
   }
 
   Future<void> _createTransaction() async {
@@ -210,13 +209,36 @@ class _RemittanceTransactionScreenState extends State<RemittanceTransactionScree
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                widget.customer.name,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      widget.customer.name,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.copy, size: 18),
+                                    tooltip: 'Quick Copy',
+                                    onPressed: _copyCustomerToClipboard,
+                                  ),
+                                ],
                               ),
+                              if (_copied)
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    'Copied!',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ),
                               Text(widget.customer.phone),
                             ],
                           ),
@@ -272,11 +294,6 @@ class _RemittanceTransactionScreenState extends State<RemittanceTransactionScree
                 labelText: '${widget.customer.currencyCode} Amount',
                 prefixIcon: const Icon(Icons.attach_money),
                 suffixText: widget.customer.currencyCode,
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.copy),
-                  onPressed: _copyToClipboard,
-                  tooltip: 'Copy to clipboard',
-                ),
               ),
               onChanged: _onForeignChanged,
             ),
