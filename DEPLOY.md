@@ -34,12 +34,11 @@ Output is in **`build/web/`**. The contents of **`web/`** (including `vercel.jso
 
 ### Option A: Vercel
 
-1. Build locally (see step 2 above). The **`web/vercel.json`** is copied into **`build/web/`** automatically, so SPA rewrites are already in the deploy folder.
-2. Deploy the built folder:
-   ```bash
-   cd build/web && vercel --prod
-   ```
-   Or: **Vercel Dashboard → New Project → Deploy** and upload or connect repo; set **Output Directory** to `build/web` and **Build Command** to your `flutter build web ...` with dart-defines (use env vars for secrets).
+1. **SPA routing (no 404 on refresh):** The project root **`vercel.json`** contains a rewrite so all paths `/(.*)` go to `/index.html`. Keep this file in the repo root (same folder as `pubspec.yaml`). The **`web/vercel.json`** is also present and is copied into **`build/web/`** by `flutter build web` for CLI deploys.
+2. Build locally (see step 2 above).
+3. Deploy:
+   - **Via CLI:** `cd build/web && vercel --prod`
+   - **Via Dashboard:** Connect your repo → set **Root Directory** to `financial_app` (if the repo contains it) → set **Output Directory** to **`build/web`** → set **Build Command** to e.g. `flutter build web --release` (and add `--dart-define=SUPABASE_URL=...` etc. using env vars). The root **`vercel.json`** will be used by Vercel for rewrites.
 
 ### Option B: Netlify
 
@@ -60,12 +59,11 @@ firebase deploy
 
 ### SPA routing (no 404 on refresh)
 
-The repo already includes:
-
-- **`web/vercel.json`** – rewrites all routes to `/index.html` (Vercel). Flutter copy puts it in `build/web/`.
+- **Vercel:** **`vercel.json`** in the project root (same level as `pubspec.yaml`) has `"rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]`. Use **Output Directory** `build/web` in the Vercel dashboard.
+- **`web/vercel.json`** – same rewrite; copied into `build/web/` by `flutter build web` for CLI deploys.
 - **`web/_redirects`** – Netlify rule `/* /index.html 200`. Also copied to `build/web/`.
 
-So after `flutter build web`, **`build/web/`** is ready for both Vercel and Netlify without extra steps.
+**`web/index.html`** uses `<base href="/">` for root deployment so asset paths resolve correctly.
 
 ## 4. Verify after deploy
 
