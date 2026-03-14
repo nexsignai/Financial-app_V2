@@ -1,0 +1,11 @@
+# Netlify config for Flutter web. Use with "Build locally + deploy build/web" or set Publish directory to build/web.
+
+[build]
+  publish = "build/web"
+
+# SPA: serve index.html for all routes (fixes 404 on refresh / deep links)
+# web/_redirects is also copied into build/web by Flutter and does the same.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

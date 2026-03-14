@@ -1,0 +1,39 @@
+# Build Flutter web with Supabase; optionally deploy to Vercel (404 fixed via vercel.json in build/web).
+# Required secrets: SUPABASE_URL, SUPABASE_ANON_KEY.
+# For auto-deploy: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID (from Vercel project settings).
+
+name: Build and deploy to Vercel
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: "stable"
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build web (Supabase)
+        run: |
+          flutter build web --release \
+            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
+            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Deploy to Vercel
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./build/web
